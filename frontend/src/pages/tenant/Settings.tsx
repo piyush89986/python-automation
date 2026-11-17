@@ -28,7 +28,6 @@ export const Settings: React.FC = () => {
   const [accounts, setAccounts] = useState<InstagramAccountItem[]>([]);
   const [tokenInput, setTokenInput] = useState('');
   const [connecting, setConnecting] = useState(false);
-  const [sdkReady, setSdkReady] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [copiedToken, setCopiedToken] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -50,44 +49,58 @@ export const Settings: React.FC = () => {
     }
   };
 
+  // Handle Token Exchange
+  const handleExchangeOAuthToken = async (token: string) => {
+    setConnecting(true);
+    setStatusMessage('Meta permissions granted! Exchanging permanent tokens and linking Instagram account...');
+    setErrorMessage(null);
+
+    try {
+      const res = await instagramApi.exchangeToken(token);
+      if (res.data?.linked_accounts && res.data.linked_accounts.length > 0) {
+        const names = res.data.linked_accounts.map((a: any) => `@${a.username}`).join(', ');
+        setStatusMessage(`Successfully connected ${names}! Webhooks subscribed.`);
+      } else {
+        setStatusMessage(
+          'Facebook connected successfully! Note: No Instagram Business Account was detected on your Facebook Page. Please ensure your Instagram profile is an Instagram Business Account connected to your Facebook Page.'
+        );
+      }
+      await loadAccounts();
+    } catch (err: any) {
+      setErrorMessage(
+        'Backend token exchange failed: ' +
+          (err.response?.data?.error?.message || err.message)
+      );
+    } finally {
+      setConnecting(false);
+    }
+  };
+
   useEffect(() => {
     loadAccounts();
 
-    // Initialize Facebook JavaScript SDK
-    window.fbAsyncInit = function () {
-      if (window.FB) {
-        window.FB.init({
-          appId: appId,
-          cookie: true,
-          xfbml: true,
-          version: 'v21.0',
-        });
-        setSdkReady(true);
+    // 1. Check if redirected back from Meta OAuth redirect with access token in hash
+    const hash = window.location.hash;
+    if (hash && hash.includes('access_token=')) {
+      const params = new URLSearchParams(hash.replace(/^#/, ''));
+      const token = params.get('access_token');
+      if (token) {
+        // Clean URL hash
+        window.history.replaceState(null, '', window.location.pathname);
+        handleExchangeOAuthToken(token);
       }
-    };
-
-    if (!document.getElementById('facebook-jssdk')) {
-      const js = document.createElement('script');
-      js.id = 'facebook-jssdk';
-      js.src = 'https://connect.facebook.net/en_US/sdk.js';
-      js.async = true;
-      js.defer = true;
-      js.onload = () => {
-        if (window.FB) {
-          window.FB.init({
-            appId: appId,
-            cookie: true,
-            xfbml: true,
-            version: 'v21.0',
-          });
-          setSdkReady(true);
-        }
-      };
-      document.body.appendChild(js);
-    } else if (window.FB) {
-      setSdkReady(true);
     }
-  }, [appId]);
+
+    // 2. Check if user cancelled or error returned in search query
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get('error')) {
+      setErrorMessage(
+        'Meta authorization was cancelled: ' +
+          (searchParams.get('error_description') || searchParams.get('error_reason') || 'Access denied')
+      );
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  }, []);
 
   const handleCopy = (text: string, type: 'url' | 'token') => {
     navigator.clipboard.writeText(text);
@@ -100,64 +113,28 @@ export const Settings: React.FC = () => {
     }
   };
 
-  // Direct 1-Click Facebook SDK Login
-  const handleFacebookConnect = () => {
+  // Direct 1-Click Meta OAuth Redirect (100% Reliable, Bypasses Popup Blockers)
+  const handleDirectOAuthConnect = () => {
     setErrorMessage(null);
-    setStatusMessage(null);
-
-    if (!window.FB) {
-      setErrorMessage('Facebook SDK is loading or blocked by ad-blocker. Please disable ad-blocker or use manual token below.');
-      return;
-    }
-
+    setStatusMessage('Redirecting to official Facebook authorization...');
     setConnecting(true);
-    setStatusMessage('Opening Facebook Login dialog...');
 
-    const requiredScopes = [
-      'instagram_basic',
-      'instagram_manage_messages',
-      'instagram_manage_comments',
-      'pages_show_list',
-      'pages_read_engagement',
-      'pages_manage_metadata',
-    ].join(',');
-
-    window.FB.login(
-      async (response: any) => {
-        if (response.authResponse?.accessToken) {
-          const shortLivedToken = response.authResponse.accessToken;
-          setStatusMessage('Permissions approved! Exchanging permanent Page Access Token & linking Instagram account...');
-
-          try {
-            const res = await instagramApi.exchangeToken(shortLivedToken);
-            if (res.data?.linked_accounts && res.data.linked_accounts.length > 0) {
-              const names = res.data.linked_accounts.map((a: any) => `@${a.username}`).join(', ');
-              setStatusMessage(`Successfully connected ${names}! Webhooks subscribed.`);
-              await loadAccounts();
-            } else {
-              setStatusMessage(
-                'Facebook connected! Note: No Instagram Business Account was detected on your Facebook Page. Please ensure your Instagram is converted to a Professional/Business account and linked to your Facebook Page in Instagram Settings.'
-              );
-              await loadAccounts();
-            }
-          } catch (err: any) {
-            setErrorMessage(
-              'Backend token exchange failed: ' +
-                (err.response?.data?.error?.message || err.message)
-            );
-          } finally {
-            setConnecting(false);
-          }
-        } else {
-          setConnecting(false);
-          setErrorMessage('Facebook authorization was cancelled or required permissions were rejected.');
-        }
-      },
-      {
-        scope: requiredScopes,
-        return_scopes: true,
-      }
+    const redirectUri = encodeURIComponent(`${window.location.origin}/settings`);
+    const scopes = encodeURIComponent(
+      [
+        'instagram_basic',
+        'instagram_manage_messages',
+        'instagram_manage_comments',
+        'pages_show_list',
+        'pages_read_engagement',
+        'pages_manage_metadata',
+      ].join(',')
     );
+
+    const oauthUrl = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scopes}&response_type=token`;
+
+    // Direct browser redirect to Facebook OAuth
+    window.location.href = oauthUrl;
   };
 
   // Manual token fallback
@@ -213,19 +190,19 @@ export const Settings: React.FC = () => {
         </div>
       )}
 
-      {/* 1. DIRECT 1-CLICK FACEBOOK SDK LOGIN CARD */}
+      {/* 1. DIRECT 1-CLICK FACEBOOK OAUTH CARD */}
       <div className="relative overflow-hidden rounded-2xl border border-blue-500/30 bg-gradient-to-br from-blue-950/40 via-slate-900/80 to-slate-950 p-7 shadow-2xl backdrop-blur-xl">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-xl">
             <div className="flex items-center gap-2 text-blue-400 font-bold text-xs uppercase tracking-wider">
               <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-              <span>Official Meta OAuth</span>
+              <span>Official Meta OAuth v21.0</span>
             </div>
             <h2 className="text-xl font-black text-white tracking-tight">
-              Direct Connect with Facebook SDK
+              Direct Connect with Facebook
             </h2>
             <p className="text-xs text-slate-300 leading-relaxed">
-              Ek click me Facebook popup khulega. Permissions allow karte hi Meta automatically aapke Facebook Page se linked Instagram Business Account ko fetch karke bot se connect kar dega.
+              Button click karte hi official Facebook login khulega. Permissions allow karte hi Meta automatically aapke Facebook Page aur Instagram Business Account ko fetch karke bot se connect kar dega.
             </p>
             <div className="pt-1 flex flex-wrap gap-2 text-[11px] text-slate-400 font-mono">
               <span className="px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-blue-300">
@@ -243,7 +220,7 @@ export const Settings: React.FC = () => {
           <div className="shrink-0 flex flex-col items-center gap-2">
             <button
               type="button"
-              onClick={handleFacebookConnect}
+              onClick={handleDirectOAuthConnect}
               disabled={connecting}
               className="w-full sm:w-auto px-6 py-3.5 bg-[#1877F2] hover:bg-[#166fe5] active:scale-95 disabled:opacity-50 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-3 transition shadow-xl shadow-blue-600/30 cursor-pointer"
             >
@@ -263,7 +240,7 @@ export const Settings: React.FC = () => {
               )}
             </button>
             <span className="text-[11px] text-slate-400">
-              {sdkReady ? '● Meta SDK Ready (v21.0)' : '○ Loading Meta SDK...'}
+              ● Official Meta OAuth (Direct Authorization)
             </span>
           </div>
         </div>
