@@ -4,12 +4,15 @@ import { useAuth } from '../../context';
 import {
   Building2,
   Activity,
-  Bot,
   Database,
-  Share2,
   Settings,
   LayoutDashboard,
   ShieldAlert,
+  MessageSquare,
+  ShoppingBag,
+  Users,
+  GitFork,
+  Calendar,
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
@@ -23,10 +26,13 @@ export const Sidebar: React.FC = () => {
 
   const tenantLinks = [
     { to: '/dashboard', label: 'Overview', icon: LayoutDashboard },
-    { to: '/bots', label: 'AI Chatbots', icon: Bot },
+    { to: '/inbox', label: 'Live Inbox', icon: MessageSquare },
+    { to: '/products', label: 'Product Catalog', icon: ShoppingBag },
+    { to: '/crm', label: 'CRM & Leads', icon: Users },
+    { to: '/automations', label: 'Automations', icon: GitFork },
+    { to: '/publishing', label: 'IG Publishing', icon: Calendar },
     { to: '/knowledge', label: 'Knowledge Base', icon: Database },
-    { to: '/channels', label: 'Integrations', icon: Share2 },
-    { to: '/settings', label: 'Org Settings', icon: Settings },
+    { to: '/settings', label: 'Meta Settings', icon: Settings },
   ];
 
   const links = isSuperAdmin ? superAdminLinks : tenantLinks;
@@ -78,7 +84,7 @@ export const Sidebar: React.FC = () => {
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                     isActive
-                      ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-500/30'
+                      ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 font-semibold'
                       : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
                   }`
                 }
@@ -93,8 +99,8 @@ export const Sidebar: React.FC = () => {
 
       {/* Footer Info */}
       <div className="p-4 border-t border-slate-800/80 text-xs text-slate-500">
-        <p className="font-medium text-slate-400">Instagram & WhatsApp AI</p>
-        <p className="text-[11px] mt-0.5">FastAPI &bull; Celery &bull; Redis</p>
+        <p className="font-medium text-slate-400">Instagram Graph API v21.0</p>
+        <p className="text-[11px] mt-0.5">AI Agents &bull; Human Takeover</p>
       </div>
     </aside>
   );

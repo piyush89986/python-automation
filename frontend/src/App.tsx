@@ -7,10 +7,13 @@ import { HealthPage } from './pages/HealthPage';
 import { BusinessesList } from './pages/superadmin/BusinessesList';
 import { SystemOverview } from './pages/superadmin/SystemOverview';
 import { TenantDashboard } from './pages/tenant/TenantDashboard';
-import { BotsManager } from './pages/tenant/BotsManager';
+import { Inbox } from './pages/tenant/Inbox';
+import { Products } from './pages/tenant/Products';
+import { CRM } from './pages/tenant/CRM';
+import { Automations } from './pages/tenant/Automations';
+import { Publishing } from './pages/tenant/Publishing';
 import { KnowledgeBase } from './pages/tenant/KnowledgeBase';
-import { ChannelsIntegration } from './pages/tenant/ChannelsIntegration';
-import { TenantSettings } from './pages/tenant/TenantSettings';
+import { Settings } from './pages/tenant/Settings';
 import { NotFound } from './pages/NotFound';
 import { Loader2 } from 'lucide-react';
 
@@ -113,10 +116,42 @@ export const App: React.FC = () => {
               }
             />
             <Route
-              path="/bots"
+              path="/inbox"
               element={
                 <ProtectedRoute requiredRole="business_admin">
-                  <BotsManager />
+                  <Inbox />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/products"
+              element={
+                <ProtectedRoute requiredRole="business_admin">
+                  <Products />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/crm"
+              element={
+                <ProtectedRoute requiredRole="business_admin">
+                  <CRM />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/automations"
+              element={
+                <ProtectedRoute requiredRole="business_admin">
+                  <Automations />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/publishing"
+              element={
+                <ProtectedRoute requiredRole="business_admin">
+                  <Publishing />
                 </ProtectedRoute>
               }
             />
@@ -129,18 +164,10 @@ export const App: React.FC = () => {
               }
             />
             <Route
-              path="/channels"
-              element={
-                <ProtectedRoute requiredRole="business_admin">
-                  <ChannelsIntegration />
-                </ProtectedRoute>
-              }
-            />
-            <Route
               path="/settings"
               element={
                 <ProtectedRoute requiredRole="business_admin">
-                  <TenantSettings />
+                  <Settings />
                 </ProtectedRoute>
               }
             />
