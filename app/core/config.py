@@ -47,11 +47,28 @@ class Settings(BaseSettings):
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
     def assemble_db_connection(cls, v: str) -> str:
+        from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+
         # Convert standard postgres/postgresql uri to asyncpg driver if needed
         if v.startswith("postgres://"):
-            return v.replace("postgres://", "postgresql+asyncpg://", 1)
+            v = v.replace("postgres://", "postgresql+asyncpg://", 1)
         elif v.startswith("postgresql://") and not v.startswith("postgresql+asyncpg://"):
-            return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+            v = v.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+        # Sanitize query parameters for asyncpg compatibility (e.g. Neon, Supabase)
+        try:
+            parsed = urlparse(v)
+            if parsed.query:
+                qs = parse_qs(parsed.query)
+                if "sslmode" in qs:
+                    ssl_val = qs.pop("sslmode")[0]
+                    qs["ssl"] = [ssl_val]
+                qs.pop("channel_binding", None)
+                new_query = urlencode(qs, doseq=True)
+                v = urlunparse(parsed._replace(query=new_query))
+        except Exception:
+            pass
+
         return v
 
     # Redis & Celery
