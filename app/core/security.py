@@ -89,3 +89,30 @@ def decode_token(token: str, is_refresh: bool = False) -> Dict[str, Any]:
         raise UnauthorizedError("Token has expired")
     except jwt.InvalidTokenError as e:
         raise UnauthorizedError(f"Invalid token: {str(e)}")
+
+
+def encrypt_field(data: str) -> str:
+    """Encrypt a sensitive field at rest using Fernet AES."""
+    if not data:
+        return ""
+    try:
+        from cryptography.fernet import Fernet
+        key = settings.FIELD_ENCRYPTION_KEY.encode() if isinstance(settings.FIELD_ENCRYPTION_KEY, str) else settings.FIELD_ENCRYPTION_KEY
+        f = Fernet(key)
+        return f.encrypt(data.encode()).decode()
+    except Exception:
+        return data
+
+
+def decrypt_field(encrypted_data: str) -> str:
+    """Decrypt a sensitive field."""
+    if not encrypted_data:
+        return ""
+    try:
+        from cryptography.fernet import Fernet
+        key = settings.FIELD_ENCRYPTION_KEY.encode() if isinstance(settings.FIELD_ENCRYPTION_KEY, str) else settings.FIELD_ENCRYPTION_KEY
+        f = Fernet(key)
+        return f.decrypt(encrypted_data.encode()).decode()
+    except Exception:
+        return encrypted_data
+
